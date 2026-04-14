@@ -1,7 +1,7 @@
 import streamlit as st
 import random
 from gtts import gTTS
-import os
+import base64
 import io
 
 # --- 1. HÀM ĐỊNH DẠNG ĐỌC SỐ ---
@@ -18,7 +18,7 @@ def get_phonetic_reading(n_int, lang_key):
         return yi_text.replace("0亿", "亿")
     return f"{n_int // 10000}万{n_int % 10000 if n_int % 10000 > 0 else ''}"
 
-# --- 2. HÀM TẠO SỐ VỚI LOGIC LÀM TRÒN ---
+# --- 2. HÀM TẠO SỐ ---
 def generate_number_by_difficulty(limit, difficulty):
     limit = max(int(limit), 1)
     val = random.randint(0, limit)
@@ -32,22 +32,14 @@ def generate_number_by_difficulty(limit, difficulty):
         val = (val // step) * step
     return val if val > 0 else random.randint(1, 10)
 
-# --- 3. CẤU HÌNH & KHỞI TẠO BIẾN ---
+# --- 3. KHỞI TẠO HỆ THỐNG ---
 st.set_page_config(page_title="App Luyện Nghe Pro", layout="wide")
 
-# Khởi tạo session state an toàn
-if 'target_value' not in st.session_state:
-    st.session_state.target_value = ""
-if 'display_answer' not in st.session_state:
-    st.session_state.display_answer = False
-if 'input_key' not in st.session_state:
-    st.session_state.input_key = 0
-if 'check_status' not in st.session_state:
-    st.session_state.check_status = 'idle'
-if 'play_sound' not in st.session_state:
-    st.session_state.play_sound = None
-if 'has_audio' not in st.session_state:
-    st.session_state.has_audio = False
+# Khởi tạo an toàn cho Session State
+for key, default in [('target_value', ""), ('display_answer', False), ('input_key', 0), 
+                    ('check_status', 'idle'), ('play_sound', None), ('b64_audio', None)]:
+    if key not in st.session_state:
+        st.session_state[key] = default
 
 SOUND_OK = "https://www.myinstants.com/media/sounds/correct_F677v9p.mp3"
 SOUND_FAIL = "https://www.myinstants.com/media/sounds/erro.mp3"
@@ -56,11 +48,10 @@ SOUND_FAIL = "https://www.myinstants.com/media/sounds/erro.mp3"
 col_left, col_main, col_right = st.columns([1.5, 4, 1.5], gap="large")
 
 with col_left:
-    st.write("\n" * 10) 
+    st.write("\n" * 10)
     status = st.session_state.check_status
-    if status == "correct": st.markdown("<h1 style='text-align: center; font-size: 100px;'>🥳</h1>", unsafe_allow_html=True)
-    elif status == "wrong": st.markdown("<h1 style='text-align: center; font-size: 100px;'>😤</h1>", unsafe_allow_html=True)
-    else: st.markdown("<h1 style='text-align: center; font-size: 100px;'>🤔</h1>", unsafe_allow_html=True)
+    emoji = "🥳" if status == "correct" else "😤" if status == "wrong" else "🤔"
+    st.markdown(f"<h1 style='text-align: center; font-size: 100px;'>{emoji}</h1>", unsafe_allow_html=True)
 
 with col_main:
     st.title("🎧 App Luyện Phản Xạ Pro")
@@ -80,38 +71,44 @@ with col_main:
     if st.button("🔔 PHÁT NỘI DUNG MỚI", use_container_width=True):
         lang_key = "ja" if "Nhật" in lang else "zh-CN"
         
-        if mode == "Số đếm": 
-            st.session_state.target_value = str(generate_number_by_difficulty(limit_option, difficulty))
-        elif mode == "Ngày tháng": 
-            st.session_state.target_value = f"{random.randint(1990, 2026)}年{random.randint(1, 12)}月{random.randint(1, 28)}日"
-        elif mode == "Phần trăm (%)": 
-            st.session_state.target_value = f"{random.randint(0, 100)}%"
+        # Logic tạo nội dung
+        if mode == "Số đếm": st.session_state.target_value = str(generate_number_by_difficulty(limit_option, difficulty))
+        elif mode == "Ngày tháng": st.session_state.target_value = f"{random.randint(1990, 2026)}年{random.randint(1, 12)}月{random.randint(1, 28)}日"
+        elif mode == "Phần trăm (%)": st.session_state.target_value = f"{random.randint(0, 100)}%"
         elif mode == "Khoảng thời gian & Thứ":
             n = random.randint(1, 10)
-            items = [f"{n}日前", f"{n}日後", "来年", "去年"] if lang_key=="ja" else [f"{n}天前", f"{n}天后", "明年", "去年"]
+            items = [f"{n}日前", f"{n}日後", "来週", "昨日"] if lang_key=="ja" else [f"{n}天前", f"{n}天后", "下个星期", "昨天"]
             st.session_state.target_value = random.choice(items)
         elif mode == "Thời gian tổng hợp":
             st.session_state.target_value = "朝8時半" if lang_key=="ja" else "早上8点半"
             
         st.session_state.update({'display_answer': False, 'check_status': 'idle', 'input_key': st.session_state.input_key + 1, 'play_sound': None})
         
+        # --- CƠ CHẾ AUDIO MỚI CHO IPHONE ---
         text_to_read = st.session_state.target_value
         if mode == "Số đếm": text_to_read = get_phonetic_reading(int(text_to_read), lang_key)
         
         try:
             tts = gTTS(text=text_to_read, lang=lang_key)
-            tts.save("temp_audio.mp3")
-            st.session_state.has_audio = True
+            fp = io.BytesIO()
+            tts.write_to_fp(fp)
+            # Mã hóa Base64 để nhúng trực tiếp vào trang web
+            b64 = base64.b64encode(fp.getvalue()).decode()
+            st.session_state.b64_audio = b64
         except:
             st.error("Lỗi tạo âm thanh")
-            st.session_state.has_audio = False
 
-    # Hiển thị audio an toàn
-    if st.session_state.get('has_audio') and os.path.exists("temp_audio.mp3"):
-        with open("temp_audio.mp3", "rb") as f:
-            st.audio(f.read(), format="audio/mp3")
+    # --- HIỂN THỊ TRÌNH PHÁT HTML (ƯU TIÊN IPHONE) ---
+    if st.session_state.b64_audio:
+        audio_html = f"""
+            <audio controls style="width: 100%;">
+                <source src="data:audio/mp3;base64,{st.session_state.b64_audio}" type="audio/mp3">
+                Trình duyệt của bạn không hỗ trợ audio.
+            </audio>
+        """
+        st.markdown(audio_html, unsafe_allow_html=True)
     else:
-        st.info("Nhấn nút '🔔 PHÁT NỘI DUNG MỚI' để bắt đầu.")
+        st.info("Nhấn nút '🔔 PHÁT' để bắt đầu.")
 
     st.markdown("### ✍️ Nhập đáp án:")
     user_input = st.text_input("Input", key=f"input_{st.session_state.input_key}", label_visibility="collapsed")
@@ -132,13 +129,11 @@ with col_main:
 
 with col_right:
     st.write("\n" * 10)
-    if st.session_state.check_status == "correct": st.markdown("<h1 style='text-align: center; font-size: 100px;'>✨</h1>", unsafe_allow_html=True)
-    elif st.session_state.check_status == "wrong": st.markdown("<h1 style='text-align: center; font-size: 100px;'>💢</h1>", unsafe_allow_html=True)
-    else: st.markdown("<h1 style='text-align: center; font-size: 100px;'>🎧</h1>", unsafe_allow_html=True)
+    emoji_right = "✨" if status == "correct" else "💢" if status == "wrong" else "🎧"
+    st.markdown(f"<h1 style='text-align: center; font-size: 100px;'>{emoji_right}</h1>", unsafe_allow_html=True)
 
-if st.session_state.play_sound == "ok":
-    st.markdown(f'<audio autoplay src="{SOUND_OK}"></audio>', unsafe_allow_html=True)
-    st.session_state.play_sound = None 
-elif st.session_state.play_sound == "fail":
-    st.markdown(f'<audio autoplay src="{SOUND_FAIL}"></audio>', unsafe_allow_html=True)
+# Hiệu ứng âm thanh thông báo
+if st.session_state.play_sound:
+    src = SOUND_OK if st.session_state.play_sound == 'ok' else SOUND_FAIL
+    st.markdown(f'<audio autoplay src="{src}"></audio>', unsafe_allow_html=True)
     st.session_state.play_sound = None
