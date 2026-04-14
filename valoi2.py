@@ -34,53 +34,51 @@ def generate_number_by_difficulty(limit, difficulty):
     return val if val > 0 else random.randint(1, 10)
 
 # --- 3. CẤU HÌNH GIAO DIỆN ---
-st.set_page_config(page_title="App Luyện Nghe Master", layout="wide")
+st.set_page_config(page_title="App Luyện Nghe Pro", layout="wide")
 
 if 'target_value' not in st.session_state:
     st.session_state.update({
         'target_value': "", 'display_answer': False, 'input_key': 0, 
-        'check_status': 'idle', 'audio_bytes': None, 'autoplay_audio': False,
+        'check_status': 'idle', 'audio_bytes': None,
         'play_sound': None
     })
 
 SOUND_OK = "https://www.myinstants.com/media/sounds/correct_F677v9p.mp3"
 SOUND_FAIL = "https://www.myinstants.com/media/sounds/erro.mp3"
 
-# --- 4. DÀN TRANG 3 CỘT (ICON THÔNG BÁO) ---
+# --- 4. DÀN TRANG 3 CỘT ---
 col_left, col_main, col_right = st.columns([1.5, 4, 1.5], gap="large")
 
 with col_left:
     st.write("\n" * 10) 
     if st.session_state.check_status == "correct":
-        st.markdown("<h1 style='text-align: center; font-size: 130px;'>🥳</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center; font-size: 100px;'>🥳</h1>", unsafe_allow_html=True)
         st.markdown("<h3 style='text-align: center; color: green;'>Tuyệt quá!</h3>", unsafe_allow_html=True)
     elif st.session_state.check_status == "wrong":
-        st.markdown("<h1 style='text-align: center; font-size: 130px;'>😤</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center; font-size: 100px;'>😤</h1>", unsafe_allow_html=True)
         st.markdown("<h3 style='text-align: center; color: red;'>Sai rồi!</h3>", unsafe_allow_html=True)
     else:
-        st.markdown("<h1 style='text-align: center; font-size: 130px;'>🤔</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center; font-size: 100px;'>🤔</h1>", unsafe_allow_html=True)
 
 with col_right:
     st.write("\n" * 10)
-    # FIX LỖI TẠI ĐÂY: Sử dụng st.session_state.check_status thay vì st.session_status
     if st.session_state.check_status == "correct":
-        st.markdown("<h1 style='text-align: center; font-size: 130px;'>✨</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center; font-size: 100px;'>✨</h1>", unsafe_allow_html=True)
     elif st.session_state.check_status == "wrong":
-        st.markdown("<h1 style='text-align: center; font-size: 130px;'>💢</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center; font-size: 100px;'>💢</h1>", unsafe_allow_html=True)
     else:
-        st.markdown("<h1 style='text-align: center; font-size: 130px;'>🎧</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center; font-size: 100px;'>🎧</h1>", unsafe_allow_html=True)
 
-# --- 5. NỘI DUNG APP CHÍNH ---
 with col_main:
-    st.title("🎧 App Luyện Phản Xạ Tổng Hợp Pro")
+    st.title("🎧 App Luyện Phản Xạ Pro")
     st.markdown("---")
 
     col_a, col_b = st.columns(2)
     with col_a: lang = st.selectbox("🌐 Ngôn ngữ", ["Tiếng Nhật (ja)", "Tiếng Trung (zh-CN)"])
-    with col_b: mode = st.selectbox("📊 Loại hình", ["Số đếm", "Ngày tháng", "Phần trăm (%)", "Khoảng thời gian (n trước/sau)", "Thời gian tổng hợp (Thứ-Giờ-Buổi)"])
+    with col_b: mode = st.selectbox("📊 Loại hình", ["Số đếm", "Ngày tháng", "Phần trăm (%)", "Khoảng thời gian (n trước/sau)", "Thời gian tổng hợp"])
 
-    limit_option = 100
-    difficulty = "Khó"
+    limit_option = 100000
+    difficulty = "Dễ"
     if mode in ["Số đếm", "Phần trăm (%)"]:
         c3, c4 = st.columns(2)
         with c3: difficulty = st.selectbox("⭐ Cấp độ", ["Dễ", "Trung bình", "Khó"])
@@ -98,12 +96,10 @@ with col_main:
             st.session_state.target_value = f"{val}%"
         elif mode == "Khoảng thời gian (n trước/sau)":
             n = random.randint(1, 10)
-            if lang_key == "ja":
-                items = [f"{n}日前", f"{n}日後", f"{n}週間前", f"{n}週間後", f"{n}ヶ月前", f"{n}ヶ月後", f"{n}年前", f"{n}年後", "一昨年", "去年", "今年", "来年", "再来年"]
-            else:
-                items = [f"{n}天前", f"{n}天后", f"{n}个星期前", f"{n}个星期后", f"{n}个月前", f"{n}个月后", f"{n}年前", f"{n}年后", "前年", "去年", "今年", "明年", "后年"]
-            st.session_state.target_value = random.choice(items)
-        elif mode == "Thời gian tổng hợp (Thứ-Giờ-Buổi)":
+            items_ja = [f"{n}日前", f"{n}日後", f"{n}週間前", f"{n}週間後", f"{n}ヶ月前", f"{n}ヶ月後", f"{n}年前", f"{n}年後", "一昨年", "去年", "今年", "来年", "再来年"]
+            items_zh = [f"{n}天前", f"{n}天后", f"{n}个星期前", f"{n}个星期后", f"{n}个月前", f"{n}个月后", f"{n}年前", f"{n}年后", "前年", "去年", "今年", "明年", "后年"]
+            st.session_state.target_value = random.choice(items_ja if lang_key=="ja" else items_zh)
+        elif mode == "Thời gian tổng hợp":
             if lang_key == "ja":
                 days = ["", "月曜日", "火曜日", "水曜日", "木曜日", "金曜日", "土曜日", "日曜日", "昨日", "今日", "明日"]
                 weeks = ["", "先週", "今週", "来週"]
@@ -123,6 +119,7 @@ with col_main:
             
         st.session_state.update({'display_answer': False, 'check_status': 'idle', 'input_key': st.session_state.input_key + 1, 'play_sound': None})
         
+        # Logic phát âm
         raw_val = st.session_state.target_value
         text_to_read = raw_val
         if mode == "Số đếm" or mode == "Phần trăm (%)":
@@ -140,12 +137,11 @@ with col_main:
             fp = io.BytesIO()
             tts.write_to_fp(fp)
             st.session_state.audio_bytes = fp.getvalue()
-            st.session_state.autoplay_audio = True 
         except: st.error("Lỗi âm thanh.")
 
+    # --- TRÌNH PHÁT NHẠC (KHÔNG AUTOPLAY ĐỂ TRÁNH LỖI ĐIỆN THOẠI) ---
     if st.session_state.audio_bytes:
-        st.audio(st.session_state.audio_bytes, format="audio/mp3", autoplay=st.session_state.autoplay_audio)
-        st.session_state.autoplay_audio = False 
+        st.audio(st.session_state.audio_bytes, format="audio/mp3")
 
     st.markdown("### ✍️ Nhập đáp án:")
     user_input = st.text_input("Input", key=f"input_{st.session_state.input_key}", label_visibility="collapsed")
@@ -164,7 +160,7 @@ with col_main:
         st.success(f"✅ Đáp án đúng: **{st.session_state.target_value}**")
         if st.session_state.check_status == "correct": st.balloons()
 
-# --- 6. PHÁT ÂM THANH HIỆU ỨNG ---
+# --- 6. PHÁT ÂM THANH HIỆU ỨNG (ẨN) ---
 if st.session_state.play_sound == "ok":
     st.markdown(f'<audio autoplay src="{SOUND_OK}"></audio>', unsafe_allow_html=True)
     st.session_state.play_sound = None 
